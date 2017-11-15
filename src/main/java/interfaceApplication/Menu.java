@@ -19,7 +19,6 @@ public class Menu {
 	private session se;
 	private JSONObject userInfo = null;
 	private String userUgid = null;
-	private Integer userType = null;
 
 	public Menu() {
 
@@ -28,13 +27,11 @@ public class Menu {
 		gDbSpecField.importDescription(appsProxy.tableConfig("menu"));
 		menu.descriptionModel(gDbSpecField);
 		menu.bindApp();
-		menu.enableCheck();//开启权限检查
 
 		se = new session();
 		userInfo = se.getDatas();
 		if (userInfo != null && userInfo.size() != 0) {
 			userUgid = userInfo.getString("ugid");   //角色id
-			userType =userInfo.getInt("userType");//当前用户身份
 		}  
 	}
 
@@ -213,6 +210,8 @@ public class Menu {
 	 * @return
 	 */
 	public String ShowMenu() {
+	    System.out.println("sid:" + session.getSID());
+        System.out.println("userInfo:" + userInfo);
 		JSONArray array = null;
 		if (StringHelper.InvaildString(userUgid)) {
 			array = menu.eq("state", 0).like("prvid", userUgid).select();

@@ -6,6 +6,7 @@ import org.json.simple.JSONObject;
 
 import JGrapeSystem.rMsg;
 import apps.appsProxy;
+import authority.plvDef.plvType;
 import interfaceModel.GrapeDBSpecField;
 import interfaceModel.GrapeTreeDBModel;
 import nlogger.nlogger;
@@ -18,6 +19,7 @@ public class Menu {
 	private session se;
 	private JSONObject userInfo = null;
 	private String userUgid = null;
+	private Integer userType = null;
 
 	public Menu() {
 
@@ -26,11 +28,13 @@ public class Menu {
 		gDbSpecField.importDescription(appsProxy.tableConfig("menu"));
 		menu.descriptionModel(gDbSpecField);
 		menu.bindApp();
+		menu.enableCheck();//开启权限检查
 
 		se = new session();
 		userInfo = se.getDatas();
 		if (userInfo != null && userInfo.size() != 0) {
 			userUgid = userInfo.getString("ugid");   //角色id
+			userType =userInfo.getInt("userType");//当前用户身份
 		}  
 	}
 
@@ -86,11 +90,17 @@ public class Menu {
 					prvid = temp.getString("prvid");
 					prvid = prvid + "," + userUgid;
 					object.put("prvid", prvid);
-					menu.eq("_id", id).data(object).update();
+					menu.eq("_id", id).data(object).updateEx();
 				}
 			} else {
+				JSONObject rMode = new JSONObject(plvType.chkType, plvType.powerVal).puts(plvType.chkVal, 100);//设置默认查询权限
+	        	JSONObject uMode = new JSONObject(plvType.chkType, plvType.powerVal).puts(plvType.chkVal, 200);
+	        	JSONObject dMode = new JSONObject(plvType.chkType, plvType.powerVal).puts(plvType.chkVal, 300);
+	        	object.put("rMode", rMode.toJSONString()); //添加默认查看权限
+	        	object.put("uMode", uMode.toJSONString()); //添加默认修改权限
+	        	object.put("dMode", dMode.toJSONString()); //添加默认删除权限
 				object.put("prvid", userUgid);
-				id = (String) menu.data(object).insertOnce();
+				id = (String) menu.data(object).insertEx();
 			}
 		}
 		return find(id);
@@ -147,19 +157,18 @@ public class Menu {
 	 *
 	 */
 	public String UpdateMenu(String mid, String mString) {
-		Object tip = null;
+		boolean tip = false;
 		String result = rMsg.netMSG(100, "修改失败");
 		try {
 			if (StringHelper.InvaildString(mid) || StringHelper.InvaildString(mString)) {
 				return rMsg.netMSG(1, "参数错误");
 			}
 			JSONObject object = JSONObject.toJSON(mString);
-			tip = menu.eq("_id", mid).data(object).update();
+			tip = menu.eq("_id", mid).data(object).updateEx();
 		} catch (Exception e) {
 			nlogger.logout(e);
-			tip = null;
 		}
-		return (tip != null) ? rMsg.netMSG(0, "修改成功") : result;
+		return result = tip ? rMsg.netMSG(0, "修改成功") : result;
 	}
 
 	/**

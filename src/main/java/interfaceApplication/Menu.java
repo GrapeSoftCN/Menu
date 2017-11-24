@@ -1,5 +1,8 @@
 package interfaceApplication;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.bson.types.ObjectId;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -9,6 +12,8 @@ import apps.appsProxy;
 import authority.plvDef.plvType;
 import interfaceModel.GrapeDBSpecField;
 import interfaceModel.GrapeTreeDBModel;
+import io.netty.handler.codec.http.HttpContentEncoder.Result;
+import json.JSONHelper;
 import nlogger.nlogger;
 import session.session;
 import string.StringHelper;
@@ -19,6 +24,7 @@ public class Menu {
     private session se;
     private JSONObject userInfo = null;
     private String userUgid = null;
+    private String pkString = null;
 
     public Menu() {
 
@@ -27,6 +33,7 @@ public class Menu {
         gDbSpecField.importDescription(appsProxy.tableConfig("menu"));
         menu.descriptionModel(gDbSpecField);
         menu.bindApp();
+        pkString = menu.getPk();
 
         se = new session();
         userInfo = se.getDatas();
@@ -216,5 +223,102 @@ public class Menu {
             array = menu.eq("state", 0).like("prvid", userUgid).select();
         }
         return rMsg.netMSG(true, (array != null && array.size() > 0) ? array : new JSONArray());
+    }
+
+    /**
+     * 给菜单设置所属角色id
+     * 
+     * @project GrapeMenu
+     * @package interfaceApplication
+     * @file Menu.java
+     * 
+     * @param id
+     *            角色id
+     * @param mid
+     *            菜单id
+     * @return
+     *
+     */
+    public String SetRole(String rid, String mid) {
+        long code = 0;
+        String temp, result = rMsg.netMSG(100, "设置所属角色失败");
+        if (!StringHelper.InvaildString(rid)) {
+            return rMsg.netMSG(1, "无效角色id");
+        }
+        if (!StringHelper.InvaildString(mid)) {
+            return rMsg.netMSG(2, "无效菜单id");
+        }
+        try {
+            String[] mids = mid.split(",");
+            if (mids != null) {
+                for (String id : mids) {
+                    if (code == 0) {
+                        temp = setManager(rid, id);
+                        code = JSONObject.toJSON(temp).getLong("errorcode");
+                    } else {
+                        result = rMsg.netMSG(100, "设置失败");
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            nlogger.logout(e);
+            result = rMsg.netMSG(100, "设置失败");
+        }
+        return code == 0 ? rMsg.netMSG(0, "设置成功") : result;
+    }
+
+    /**
+     * 给菜单设置所属角色id
+     * 
+     * @project GrapeMenu
+     * @package interfaceApplication
+     * @file Menu.java
+     * 
+     * @param id
+     *            角色id
+     * @param mid
+     *            菜单id
+     * @return
+     *
+     */
+    private String setManager(String rid, String mid) {
+        String result = rMsg.netMSG(100, "设置失败");
+        JSONObject object = menu.eq(pkString, mid).like("prvid", rid).find();
+        if (object != null && object.size() > 0) {
+            return rMsg.netMSG(3, "该管理员已具备操作此菜单的权限");
+        }
+        String prvid = "";
+        object = menu.eq(pkString, mid).field("prvid").find();
+        if (object != null && object.size() > 0) {
+            prvid = object.get("prvid").toString();
+            List<String> list = Str2List(prvid);
+            list.add(rid);
+            prvid = StringHelper.join(list);
+        }
+        prvid = "{\"prvid\":\"" + prvid + "\"}";
+        int code = menu.eq(pkString, mid).data(prvid).update() != null ? 0 : 99;
+        result = code == 0 ? rMsg.netMSG(0, "设置成功") : rMsg.netMSG(100, "设置失败");
+        return result;
+    }
+
+    /**
+     * 用逗号分隔的字符串转换成list
+     * 
+     * @project GrapeMenu
+     * @package interfaceApplication
+     * @file Menu.java
+     * 
+     * @param iString
+     * @return
+     *
+     */
+    private List<String> Str2List(String iString) {
+        List<String> list = new ArrayList<String>();
+        String[] strings = iString.split(",");
+        for (String string : strings) {
+            list.add(string);
+        }
+        return list;
     }
 }
